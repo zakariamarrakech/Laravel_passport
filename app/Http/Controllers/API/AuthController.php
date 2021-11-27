@@ -10,39 +10,37 @@ class AuthController extends Controller
 {
     public function register(Request $request)
     {
-        $validatedData = $request->validate([
-            'name' => 'required|max:55',
-            'email' => 'email|required|unique:users',
-            'password' => 'required'
+        $this->validate($request, [
+            'name' => 'required|min:4',
+            'email' => 'required|email',
+            'password' => 'required|min:8',
         ]);
-
-        $validatedData['password'] = bcrypt($request->password);
-
-        $user = User::create($validatedData);
-
-        $accessToken = $user->createToken('authToken')->accessToken;
-
-        if($user){
-            return response([ 'user' => $user, 'access_token' => $accessToken,'status'=>200]);
-        }
-
-        return response([ 'status' => 404, 'Message' => "failed"]);
+ 
+        $user = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => bcrypt($request->password)
+        ]);
+       
+        $token = $user->createToken('LaravelAuthApp')->accessToken;
+ 
+        return response()->json(['token' => $token], 200);
     }
 
     public function login(Request $request)
     {
-        $loginData = $request->validate([
-            'email' => 'email|required',
-            'password' => 'required'
-        ]);
-
-        if (!auth()->attempt($loginData)) {
-            return response(['Status'=>404,'message' => 'Invalid Credentials']);
+        $data = [
+            'email' => $request->email,
+            'password' => $request->password
+        ];
+        $user = User::where('email',$data['email'])->get();
+ 
+        if (auth()->attempt($data)) {
+            $token = auth()->user()->createToken('LaravelAuthApp')->accessToken;
+            return response()->json(['token' => $token,'data'=>$user], 200);
+        } else {
+            return response()->json(['error' => 'Unauthorised'], 401);
         }
-
-        $accessToken = auth()->user()->createToken('authToken')->accessToken;
-
-        return response(['Status'=>200,'user' => auth()->user(), 'access_token' => $accessToken]);
 
     }
 
